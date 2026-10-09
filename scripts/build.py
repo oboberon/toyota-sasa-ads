@@ -26,7 +26,8 @@ def shape(r, key):
             'spend': round(num(r['amount_spent']['value']), 2), 'reach': int(num(r['reach'])),
             'impressions': int(num(r['impressions'])), 'clicks': int(num(r['clicks'])),
             'link_clicks': int(num(r['link_click'])), 'inbox': inbox(r)}
-for prefix, key, out in [('w', 'week', 'weekly.json'), ('m', 'month', 'monthly.json')]:
+for prefix, key, out in [('w', 'week', 'weekly.json'), ('m', 'month', 'monthly.json'), ('d', 'day', 'daily.json')]:
+    if not glob.glob(f'{raw}/{prefix}_*.json'): print('skip', out, '(no', prefix + '_*.json files)'); continue
     R = [shape(r, key) for r in rows(prefix) if num(r['amount_spent']['value']) > 0 or num(r['impressions']) > 0]
     if key == 'month': 
         for r in R: r['month'] = r['month'][:7]

@@ -81,7 +81,7 @@ font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1320
 </style></head>
 <body><div id="dash-root"><script>
 window.dash=(()=>{const DEF={grain:'month',start:null,end:null,sale:'ทุกคน',_sort:null};
-let params={...DEF};const sets={weekly:{status:'loading',data:[]},monthly:{status:'loading',data:[]}};const calcs={};const cache={};const fns=[];
+let params={...DEF};const sets={weekly:{status:'loading',data:[]},monthly:{status:'loading',data:[]},daily:{status:'loading',data:[]}};const calcs={};const cache={};const fns=[];
 const run=()=>{for(const f of fns){try{f()}catch(e){console.error(e)}}};
 const data=(id)=>{if(sets[id])return sets[id];const c=calcs[id];if(!c)return{status:'missing',data:[]};
 const ins=c.inputs.map(data);if(ins.some(d=>d.status!=='ok'))return{status:ins.find(d=>d.status!=='ok').status,data:[]};
@@ -89,11 +89,11 @@ if(!cache[id])cache[id]={status:'ok',data:c.fn(...ins.map(d=>d.data))};return ca
 const expand=(D)=>{const nm=(c)=>c[2].charCodeAt(0)===0?c[2].slice(1):D.pre[c[0]]+'Sale '+D.sales[c[1]]+c[2];
 const C=D.camps.map((c,i)=>({campaign_id:String(i),campaign:nm(c),sale:D.sales[c[1]]}));
 const mk=(rows,per,key)=>rows.map(r=>({[key]:per[r[0]],...C[r[1]],spend:r[2],reach:r[3],impressions:r[4],clicks:r[5],link_clicks:r[6],inbox:r[7]}));
-return{weekly:mk(D.w,D.weeks,'week'),monthly:mk(D.m,D.months,'month')}};
+return{weekly:mk(D.w,D.weeks,'week'),monthly:mk(D.m,D.months,'month'),daily:D.d?mk(D.d,D.days,'day'):[]}};
 fetch('data.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(D=>{const x=expand(D);
-sets.weekly={status:'ok',data:x.weekly};sets.monthly={status:'ok',data:x.monthly};
+sets.weekly={status:'ok',data:x.weekly};sets.monthly={status:'ok',data:x.monthly};sets.daily={status:'ok',data:x.daily};
 const el=document.getElementById('upd');if(el&&D.updated)el.textContent='อัปเดตล่าสุด '+new Date(D.updated).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'})+' น.';
-}).catch(e=>{sets.weekly=sets.monthly={status:'error',data:[],message:String(e)}}).finally(()=>{for(const k in cache)delete cache[k];run()});
+}).catch(e=>{sets.weekly=sets.monthly=sets.daily={status:'error',data:[],message:String(e)}}).finally(()=>{for(const k in cache)delete cache[k];run()});
 let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(run,120)});
 return{data,onData:(f)=>{fns.push(f);try{f()}catch(e){console.error(e)}},calc:(id,c)=>{calcs[id]=c},
 params:()=>({...params}),setParams:(o)=>{Object.assign(params,o);run()},resetParams:()=>{params={...DEF};run()},
@@ -143,7 +143,7 @@ colors:['var(--sasa-red)','var(--sasa-gray)','#111111','#E3000F','#808285','#B0B
 <div class="ts-grid">
 <section class="ts-card" id="trend">
 <h2 class="trend-title">Inbox และ cost per inbox</h2>
-<p class="note">แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
+<p class="note trend-note">แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
 <div class="ts-legend"><span><i style="background:var(--sasa-red)"></i>Inbox</span><span><i class="ln" style="background:var(--sasa-gray)"></i>Cost per inbox</span></div>
 <div class="ts-chart" data-source="by_sale"></div>
 </section>
@@ -244,6 +244,10 @@ const fmtBaht2 = (v) => v == null ? '—' : '฿' + d3.format(',.2f')(v);
 const fmtPct = (v) => v == null ? '—' : d3.format('.2%')(v);
 const fmtBig = (v) => v >= 10000 ? new Intl.NumberFormat('en', {notation: 'compact', maximumFractionDigits: 1}).format(v) : fmtInt(v);
 const thDate = (s, yr) => { const d = new Date(s + 'T00:00:00Z'); return d.getUTCDate() + ' ' + TH_M[d.getUTCMonth()] + (yr ? ' ' + d.getUTCFullYear() : ''); };
+const TH_D = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+const wkStart = (s) => addDays(s, -((new Date(s + 'T00:00:00Z').getUTCDay() + 6) % 7));
+const dow = (s) => TH_D[new Date(s + 'T00:00:00Z').getUTCDay()];
+const span2 = (a, b, yr) => a === b ? thDate(a, yr) : (a.slice(0, 7) === b.slice(0, 7) ? +a.slice(8) : thDate(a)) + '–' + thDate(b, yr);
 const allId = (g) => g === 'week' ? 'ALL-W' : 'ALL-M';
 const pStart = (p) => p.length === 7 ? p + '-01' : p;
 const pEnd = (p) => { if (p.length === 7) { const [y, m] = p.split('-').map(Number); return iso(new Date(Date.UTC(y, m, 0))); } return addDays(p, 6); };
@@ -375,9 +379,45 @@ take.append(' — ต้นทุนต่ำสุด ', span(best.sale), ' (',
 }
 }
 } else take.textContent = rangeLabel;
-// trend
-const tr = periods.map((p) => get(p, curS) || {period: p, sale: curS, inbox: 0, cpi: null, spend: 0});
-document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox ' + (grain === 'week' ? 'รายสัปดาห์' : 'รายเดือน') + ' · ' + (curS === ALL ? 'ทุกเซล' : curS);
+// trend — drill down when exactly one period is selected: one month -> its weeks, one week -> its days
+const dly = dash.data('daily');
+const drill = mode === 'one' && dly.status === 'ok' && dly.data.length ? grain : null;
+const who = curS === ALL ? 'ทุกเซล' : curS;
+let tr, xLab, tipLab, onBar, barCursor = 'pointer';
+const trendNote = document.querySelector('.trend-note');
+if (drill) {
+const p0 = pStart(pid), p1 = d3.min([pEnd(pid), today()]);
+const keyOf = drill === 'month' ? wkStart : (d) => d;
+const rows = dly.data.filter((r) => r.day >= p0 && r.day <= p1 && (curS === ALL || r.sale === curS));
+const by = d3.group(rows, (r) => keyOf(r.day));
+const keys = [];
+for (let d = p0; d <= p1; d = addDays(d, 1)) { const k = keyOf(d); if (keys[keys.length - 1] !== k) keys.push(k); }
+tr = keys.map((k) => {
+const a = k < p0 ? p0 : k, b = drill === 'month' ? d3.min([addDays(k, 6), p1]) : k;
+return {...sumRows(by.get(k) || []), period: k, a, b};
+});
+const byK = new Map(tr.map((d) => [d.period, d]));
+if (drill === 'month') {
+xLab = (k) => span2(byK.get(k).a, byK.get(k).b);
+tipLab = (d) => 'สัปดาห์ ' + span2(d.a, d.b, true);
+onBar = (d) => dash.setParams({grain: 'week', start: d.period, end: addDays(d.period, 6)});
+document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox รายสัปดาห์ · ' + plabel(pid) + ' · ' + who;
+trendNote.textContent = 'แยกเป็นสัปดาห์ (จันทร์–อาทิตย์) นับเฉพาะวันที่อยู่ในเดือนนี้ · คลิกแท่งเพื่อดูรายวันของสัปดาห์นั้น';
+} else {
+xLab = (k) => dow(k) + ' ' + +k.slice(8);
+tipLab = (d) => dow(d.period) + ' ' + thDate(d.period, true);
+onBar = null; barCursor = 'default';
+document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox รายวัน · ' + plabel(pid) + ' · ' + who;
+trendNote.textContent = 'แยกเป็นรายวัน · ยอดรายวันรวมกันอาจต่างจากยอดทั้งสัปดาห์ราว ±1 inbox เพราะ Meta นับคนทักซ้ำต่างกันตามช่วงเวลา';
+}
+} else {
+tr = periods.map((p) => get(p, curS) || {period: p, sale: curS, inbox: 0, cpi: null, spend: 0});
+xLab = (p) => plabel(p, true);
+tipLab = (d) => plabel(d.period);
+onBar = (d) => mode === 'one' ? dash.setParams({start: null, end: null}) : dash.setParams({start: pStart(d.period), end: pEnd(d.period)});
+document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox ' + (grain === 'week' ? 'รายสัปดาห์' : 'รายเดือน') + ' · ' + who;
+trendNote.textContent = 'แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น' + (mode === 'one' ? '' : ' (เลือก 1 ' + (grain === 'week' ? 'สัปดาห์จะเห็นรายวัน' : 'เดือนจะเห็นรายสัปดาห์') + ')');
+}
 const W = chartBox.clientWidth || 600, H = 280, m = {t: 12, r: 52, b: 28, l: 44};
 chartBox.replaceChildren();
 if (tr.length) {
@@ -391,14 +431,14 @@ svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).tic
 svg.append('g').attr('transform', `translate(${W - m.r},0)`).call(d3.axisRight(y2).ticks(5).tickFormat((v) => '฿' + d3.format('~s')(v)))
 .attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').remove(); axisText(g); });
 const every = Math.max(1, Math.ceil(tr.length / Math.max(1, Math.floor((W - m.l - m.r) / 56))));
-svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat((p) => plabel(p, true)).tickSize(0).tickPadding(8))
+svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat(xLab).tickSize(0).tickPadding(8))
 .attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'); axisText(g); });
 svg.append('g').selectAll('rect').data(tr).join('rect')
 .attr('x', (d) => x(d.period)).attr('width', x.bandwidth()).attr('y', (d) => y(d.inbox)).attr('height', (d) => Math.max(0, y(0) - y(d.inbox)))
-.attr('rx', Math.min(4, x.bandwidth() / 2)).attr('fill', RED).attr('fill-opacity', mode === 'one' ? 1 : 0.85).style('cursor', 'pointer')
-.on('mousemove', (ev, d) => showTip(chartBox, ev, plabel(d.period), ['Inbox: ' + fmtInt(d.inbox), 'Cost/inbox: ' + fmtBaht2(d.cpi), 'Spend: ' + fmtBaht(d.spend)]))
+.attr('rx', Math.min(4, x.bandwidth() / 2)).attr('fill', RED).attr('fill-opacity', mode === 'one' && !drill ? 1 : 0.85).style('cursor', barCursor)
+.on('mousemove', (ev, d) => showTip(chartBox, ev, tipLab(d), ['Inbox: ' + fmtInt(d.inbox), 'Cost/inbox: ' + fmtBaht2(d.cpi), 'Spend: ' + fmtBaht(d.spend)]))
 .on('mouseleave', hideTip)
-.on('click', (ev, d) => mode === 'one' ? dash.setParams({start: null, end: null}) : dash.setParams({start: pStart(d.period), end: pEnd(d.period)}));
+.on('click', (ev, d) => { if (onBar) onBar(d); });
 const line = d3.line().defined((d) => d.cpi != null).x((d) => x(d.period) + x.bandwidth() / 2).y((d) => y2(d.cpi));
 svg.append('path').datum(tr).attr('d', line).attr('fill', 'none').attr('stroke', GRAY).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
 svg.append('g').selectAll('circle').data(tr.filter((d) => d.cpi != null)).join('circle').attr('cx', (d) => x(d.period) + x.bandwidth() / 2).attr('cy', (d) => y2(d.cpi)).attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', GRAY).attr('stroke-width', 1.5).style('pointer-events', 'none');

@@ -152,6 +152,7 @@ colors:['var(--sasa-red)','var(--sasa-gray)','#111111','#E3000F','#808285','#B0B
 <h2 class="trend-title">แนวโน้ม</h2>
 <p class="note trend-note">คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
 <div class="ts-legend"><span><i style="background:var(--sasa-red)"></i>Inbox</span><span><i class="ln" style="background:var(--sasa-gray)"></i>Cost per inbox</span></div>
+<p class="note trend-scale" style="margin:0 0 4px"></p>
 <div class="ts-chart" data-source="by_sale"></div>
 </section>
 <section class="ts-card" id="leaderboard">
@@ -361,47 +362,54 @@ paintCards();
 function drawTrend() {
 const box = document.querySelector('.ts-chart');
 const leg = document.querySelector('#trend .ts-legend');
+const LINE_C = ['var(--sasa-gray)', 'var(--color-fg)', '#2F6FDB', '#D98A00', '#0E8C7A', '#8B5CF6', '#D6458F', '#6B7A99'];
+// first selected count-type metric = bars (red); everything else = lines, each with its own colour
+const barK = selM.find((k) => METRICS[k].kind === 'bar') || null;
+let li = 0; const col = {}; selM.forEach((k) => { col[k] = k === barK ? RED : LINE_C[li++ % LINE_C.length]; });
 leg.replaceChildren(...selM.map((k) => { const sp = document.createElement('span'); const i = document.createElement('i');
-if (METRICS[k].kind === 'line') i.className = 'ln'; i.style.background = METRICS[k].kind === 'bar' ? RED : GRAY; sp.append(i, METRICS[k].lbl); return sp; }));
+if (k !== barK) i.className = 'ln'; i.style.background = col[k]; sp.append(i, METRICS[k].lbl); return sp; }));
 if (!lastTrend) return;
 const {tr, xLab, tipLab, onBar, barCursor, hl} = lastTrend;
 box.replaceChildren();
 if (!tr.length) return;
-const n = selM.length, W = box.clientWidth || 600, ph = n === 1 ? 256 : n === 2 ? 170 : 128, gap = 14, xh = 26;
-const m = {t: 22, r: 16, l: 56};
-const H = n * ph + (n - 1) * gap + xh;
+const W = box.clientWidth || 600, H = 300;
+const axL = selM[0], axR = selM[1] || null;
+const m = {t: 14, r: axR ? 58 : 16, b: 28, l: 58};
 const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'แนวโน้ม: ' + selM.map((k) => METRICS[k].lbl).join(', '));
 const x = d3.scaleBand(tr.map((d) => d.period), [m.l, W - m.r]).padding(0.25);
-const axisText = (g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
-selM.forEach((k, i) => {
-const M = METRICS[k], top = i * (ph + gap), y0 = top + ph;
-const val = (d) => { const v = d[k]; return v == null ? (M.kind === 'line' ? null : 0) : v; };
-const y = d3.scaleLinear([0, d3.max(tr, val) || 1], [y0, top + m.t]).nice();
-svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(n === 1 ? 5 : 3).tickSize(-(W - m.l - m.r)).tickFormat(M.ax))
-.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); axisText(g); });
-svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y0).attr('y2', y0).attr('stroke', 'var(--cds-chart-axis)');
-svg.append('text').attr('x', m.l).attr('y', top + 11).attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').style('font-weight', 600).text(M.lbl);
-if (M.kind === 'bar') {
-svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period)).attr('width', x.bandwidth())
-.attr('y', (d) => y(val(d))).attr('height', (d) => Math.max(0, y0 - y(val(d)))).attr('rx', Math.min(4, x.bandwidth() / 2))
-.attr('fill', RED).attr('fill-opacity', hl ? 1 : 0.85).style('pointer-events', 'none');
-} else {
-const pts = tr.filter((d) => val(d) != null);
-svg.append('path').datum(tr).attr('d', d3.line().defined((d) => val(d) != null).x((d) => x(d.period) + x.bandwidth() / 2).y((d) => y(val(d))))
-.attr('fill', 'none').attr('stroke', GRAY).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
-svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx', (d) => x(d.period) + x.bandwidth() / 2).attr('cy', (d) => y(val(d)))
-.attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', GRAY).attr('stroke-width', 1.5).style('pointer-events', 'none');
-}
-});
+const cx = (d) => x(d.period) + x.bandwidth() / 2;
+const val = (k) => (d) => { const v = d[k]; return v == null ? (METRICS[k].kind === 'line' ? null : 0) : v; };
+const ys = {}; selM.forEach((k) => { ys[k] = d3.scaleLinear([0, d3.max(tr, val(k)) || 1], [H - m.b, m.t]).nice(); });
+const axisText = (g, c) => g.selectAll('text').attr('fill', c || 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(ys[axL]).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(METRICS[axL].ax))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); axisText(g, selM.length > 1 ? col[axL] : null); });
+if (axR) svg.append('g').attr('transform', `translate(${W - m.r},0)`).call(d3.axisRight(ys[axR]).ticks(5).tickFormat(METRICS[axR].ax))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').remove(); axisText(g, col[axR]); });
 const every = Math.max(1, Math.ceil(tr.length / Math.max(1, Math.floor((W - m.l - m.r) / 56))));
-svg.append('g').attr('transform', `translate(0,${H - xh})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat(xLab).tickSize(0).tickPadding(8))
-.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); axisText(g); });
+svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat(xLab).tickSize(0).tickPadding(8))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'); axisText(g); });
+const guide = svg.append('line').attr('y1', m.t).attr('y2', H - m.b).attr('stroke', 'var(--cds-chart-axis)').attr('stroke-dasharray', '3 3').style('display', 'none').style('pointer-events', 'none');
+if (barK) {
+const y = ys[barK], v = val(barK);
+svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period)).attr('width', x.bandwidth())
+.attr('y', (d) => y(v(d))).attr('height', (d) => Math.max(0, y(0) - y(v(d)))).attr('rx', Math.min(4, x.bandwidth() / 2))
+.attr('fill', RED).attr('fill-opacity', hl ? 1 : 0.85).style('pointer-events', 'none');
+}
+selM.filter((k) => k !== barK).forEach((k) => {
+const y = ys[k], v = val(k);
+svg.append('path').datum(tr).attr('d', d3.line().defined((d) => v(d) != null).x(cx).y((d) => y(v(d))))
+.attr('fill', 'none').attr('stroke', col[k]).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
+svg.append('g').selectAll('circle').data(tr.filter((d) => v(d) != null)).join('circle').attr('cx', cx).attr('cy', (d) => y(v(d)))
+.attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', col[k]).attr('stroke-width', 1.5).style('pointer-events', 'none');
+});
 const step = x.step();
-svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period) - (step - x.bandwidth()) / 2).attr('width', step).attr('y', 0).attr('height', H - xh)
-.attr('fill', 'var(--sasa-red)').attr('fill-opacity', 0).style('cursor', barCursor)
-.on('mousemove', function (ev, d) { d3.select(this).attr('fill-opacity', 0.06); showTip(box, ev, tipLab(d), selM.map((k) => METRICS[k].lbl + ': ' + METRICS[k].fmt(d[k]))); })
-.on('mouseleave', function () { d3.select(this).attr('fill-opacity', 0); hideTip(); })
+svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period) - (step - x.bandwidth()) / 2).attr('width', step).attr('y', m.t).attr('height', H - m.b - m.t)
+.attr('fill', 'transparent').style('cursor', barCursor)
+.on('mousemove', (ev, d) => { guide.attr('x1', cx(d)).attr('x2', cx(d)).style('display', null); showTip(box, ev, tipLab(d), selM.map((k) => METRICS[k].lbl + ': ' + METRICS[k].fmt(d[k]))); })
+.on('mouseleave', () => { guide.style('display', 'none'); hideTip(); })
 .on('click', (ev, d) => { if (onBar) onBar(d); });
+const note = document.querySelector('.trend-scale');
+if (note) note.textContent = selM.length > 2 ? 'แต่ละตัวชี้วัดใช้สเกลของตัวเอง (แกนซ้าย = ' + METRICS[axL].lbl + ', แกนขวา = ' + METRICS[axR].lbl + ') · ชี้ที่กราฟเพื่อดูค่าจริง' : '';
 }
 dash.onData(() => {
 showDates();

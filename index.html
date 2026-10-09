@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Toyota Sasa — Ads Performance</title>
+<link rel="icon" href="logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;600;700&family=Kanit:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<style>
+:root{--font-anthropic-sans:'IBM Plex Sans Thai',system-ui,sans-serif;--font-anthropic-serif:'Kanit','IBM Plex Sans Thai',sans-serif;
+--color-fg:#1a1a1a;--color-fg-muted:#5f6368;--color-bg:#f4f4f1;--color-panel:#ffffff;--color-border-line:#e1e1dc;--color-ok:#18794e;--color-warn:#b45309;--color-bad:#c4161c;
+--cds-font-size-caption:12.5px;--cds-font-size-body:15px;--cds-font-size-heading:16px;--cds-font-size-title:28px;--cds-font-weight-medium:600;
+--cds-gap-xs:4px;--cds-gap-sm:8px;--cds-gap-md:16px;--cds-gap-lg:24px;--cds-pad-xs:4px;--cds-pad-sm:8px;--cds-pad-md:14px;--cds-pad-lg:18px;--cds-radius:8px;
+--cds-chart-grid:#ececea;--cds-chart-axis:#c9c9c4;--cds-chart-muted:#c7c8ca;--cds-surface-popover:#fff;--cds-border:#e1e1dc;--cds-shadow-popover:0 4px 16px rgba(0,0,0,.12);--cds-text-secondary:#5f6368;--cds-dur-slow:.3s}
+@media (prefers-color-scheme:dark){:root{--color-fg:#ececec;--color-fg-muted:#a3a3a3;--color-bg:#141414;--color-panel:#1e1e1e;--color-border-line:#333;--color-ok:#4ade80;--color-bad:#ff5a5f;
+--cds-chart-grid:#2a2a2a;--cds-chart-axis:#444;--cds-chart-muted:#555;--cds-surface-popover:#262626;--cds-border:#3a3a3a;--cds-text-secondary:#a3a3a3}}
+html,body{margin:0;background:var(--color-bg);color:var(--color-fg)}
+#dash-root{padding:var(--dash-gutter) var(--dash-gutter) 40px}
+.dash-skeleton{color:transparent!important;background:var(--cds-chart-grid);border-radius:6px;animation:sk 1.2s ease-in-out infinite alternate}
+@keyframes sk{from{opacity:.5}to{opacity:1}}
+.ts-brand .upd{font-size:11px;color:#4A4B4D;margin-top:4px}
+.ts-chart:empty,.ts-heat:empty{min-height:120px}
+#dash-root { --dash-gutter: clamp(12px, 3vw, 32px); }
+.ts { --sasa-red: #E3000F; --sasa-red-soft: rgba(227, 0, 15, .12); --sasa-gray: #808285; --sasa-field: #DDDDD5; --sasa-ink: #111111;
+font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1320px; margin-inline: auto; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme=light]) .ts { --sasa-red: #FF3B45; --sasa-red-soft: rgba(255, 59, 69, .18); --sasa-gray: #A7A9AC; } }
+:root[data-theme=dark] .ts { --sasa-red: #FF3B45; --sasa-red-soft: rgba(255, 59, 69, .18); --sasa-gray: #A7A9AC; }
+.ts * { box-sizing: border-box; }
+.ts-brand { display: flex; flex-wrap: wrap; align-items: center; gap: var(--cds-gap-md) var(--cds-gap-lg); background: var(--sasa-field); border-radius: var(--cds-radius); border-bottom: 4px solid var(--sasa-red); padding: var(--cds-pad-md) var(--cds-pad-lg); margin-bottom: var(--cds-gap-md); }
+.ts-brand img { height: 64px; width: auto; display: block; }
+.ts-brand .tt { flex: 1 1 16rem; min-width: 0; }
+.ts-brand h1 { font-family: var(--font-anthropic-sans); font-weight: 700; letter-spacing: .02em; font-size: var(--cds-font-size-title); color: var(--sasa-ink); margin: 0; text-transform: uppercase; }
+.ts-brand .sub { font-size: var(--cds-font-size-caption); color: #4A4B4D; letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+.ts-take { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin: 0 0 var(--cds-gap-md); line-height: 1.55; }
+.ts-take b { color: var(--color-fg); font-weight: 600; }
+.ts-take b.hl { color: var(--sasa-red); }
+.ts-ctrl { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm) var(--cds-gap-md); align-items: flex-end; margin-bottom: var(--cds-gap-md); padding: var(--cds-pad-sm) var(--cds-pad-md); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-panel); }
+.ts-field { display: flex; flex-direction: column; gap: 3px; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ts-seg { display: inline-flex; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; }
+.ts-seg button { font: inherit; font-size: var(--cds-font-size-caption); padding: 7px 12px; border: 0; background: transparent; color: var(--color-fg-muted); cursor: pointer; }
+.ts-seg button[aria-pressed=true] { background: var(--sasa-red); color: #fff; font-weight: 600; }
+.ts select, .ts input[type=date] { font: inherit; font-size: var(--cds-font-size-caption); padding: 6px 8px; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); background: var(--color-bg); color: var(--color-fg); max-width: 100%; }
+.ts select:focus, .ts input:focus, .ts-seg button:focus-visible { outline: 2px solid var(--sasa-red); outline-offset: 1px; }
+.ts-reset { font: inherit; font-size: var(--cds-font-size-caption); border: 0; background: none; color: var(--sasa-red); text-decoration: underline; cursor: pointer; padding: 7px 0; }
+.ts-snap { flex-basis: 100%; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.ts-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); gap: var(--cds-gap-sm); margin-bottom: var(--cds-gap-md); }
+.ts-kpi { background: var(--color-panel); border: 1px solid var(--color-border-line); border-top: 3px solid var(--sasa-gray); border-radius: var(--cds-radius); padding: var(--cds-pad-md); }
+.ts-kpi.hero { border-top-color: var(--sasa-red); }
+.ts-kpi .lbl { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: .04em; }
+.ts-kpi .val { font-family: var(--font-anthropic-serif); font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; margin-top: 4px; min-height: 1.3em; }
+.ts-kpi.hero .val { color: var(--sasa-red); }
+.ts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); gap: var(--cds-gap-md); margin-bottom: var(--cds-gap-md); }
+.ts-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; margin-bottom: var(--cds-gap-md); }
+.ts-grid .ts-card { margin-bottom: 0; }
+.ts-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0 0 2px; padding-left: 10px; border-left: 4px solid var(--sasa-red); }
+.ts-card .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0 0 var(--cds-gap-sm); }
+.ts-chart { position: relative; min-height: 280px; }
+.ts-heat { position: relative; min-height: 120px; overflow-x: auto; }
+.ts-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; z-index: 5; display: none; }
+.ts-tip .t { color: var(--cds-text-secondary); margin-bottom: 2px; }
+.ts-legend { display: flex; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin-bottom: 4px; flex-wrap: wrap; }
+.ts-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.ts-legend i.ln { height: 2px; vertical-align: 3px; }
+.ts-tbl-wrap { max-height: 520px; overflow: auto; }
+.ts table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; }
+.ts th { position: sticky; top: 0; background: var(--color-panel); text-align: right; font-weight: 600; color: var(--color-fg-muted); padding: 6px 8px; border-bottom: 2px solid var(--sasa-red); white-space: nowrap; cursor: pointer; user-select: none; }
+.ts th[aria-sort=ascending]::after { content: ' ▲'; color: var(--sasa-red); }
+.ts th[aria-sort=descending]::after { content: ' ▼'; color: var(--sasa-red); }
+.ts th:first-child, .ts td:first-child { text-align: left; }
+.ts td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--cds-chart-grid); white-space: nowrap; }
+.ts td.name { white-space: normal; min-width: 9rem; }
+.ts tbody tr { cursor: pointer; }
+.ts tbody tr:hover { background: var(--sasa-red-soft); }
+.ts tr.sel td { font-weight: 600; background: var(--sasa-red-soft); }
+.ts .bar { display: inline-block; height: 8px; border-radius: 4px; background: var(--sasa-red); opacity: .75; vertical-align: middle; margin-left: 6px; }
+.ts .good { color: var(--color-ok); } .ts .bad { color: var(--color-bad); }
+@media (max-width: 640px) { .ts .hide-narrow { display: none; } .ts-brand img { height: 48px; } }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+[data-dash-source-state=empty] { color: transparent; }
+.ts-fail { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: inherit; }
+.ts-fail::before { content: ''; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+</style></head>
+<body><div id="dash-root"><script>
+window.dash=(()=>{const DEF={grain:'month',start:null,end:null,sale:'ทุกคน',_sort:null};
+let params={...DEF};const sets={weekly:{status:'loading',data:[]},monthly:{status:'loading',data:[]}};const calcs={};const cache={};const fns=[];
+const run=()=>{for(const f of fns){try{f()}catch(e){console.error(e)}}};
+const data=(id)=>{if(sets[id])return sets[id];const c=calcs[id];if(!c)return{status:'missing',data:[]};
+const ins=c.inputs.map(data);if(ins.some(d=>d.status!=='ok'))return{status:ins.find(d=>d.status!=='ok').status,data:[]};
+if(!cache[id])cache[id]={status:'ok',data:c.fn(...ins.map(d=>d.data))};return cache[id]};
+const expand=(D)=>{const nm=(c)=>c[2].charCodeAt(0)===0?c[2].slice(1):D.pre[c[0]]+'Sale '+D.sales[c[1]]+c[2];
+const C=D.camps.map((c,i)=>({campaign_id:String(i),campaign:nm(c),sale:D.sales[c[1]]}));
+const mk=(rows,per,key)=>rows.map(r=>({[key]:per[r[0]],...C[r[1]],spend:r[2],reach:r[3],impressions:r[4],clicks:r[5],link_clicks:r[6],inbox:r[7]}));
+return{weekly:mk(D.w,D.weeks,'week'),monthly:mk(D.m,D.months,'month')}};
+fetch('data.json',{cache:'no-cache'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}).then(D=>{const x=expand(D);
+sets.weekly={status:'ok',data:x.weekly};sets.monthly={status:'ok',data:x.monthly};
+const el=document.getElementById('upd');if(el&&D.updated)el.textContent='อัปเดตล่าสุด '+new Date(D.updated).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'})+' น.';
+}).catch(e=>{sets.weekly=sets.monthly={status:'error',data:[],message:String(e)}}).finally(()=>{for(const k in cache)delete cache[k];run()});
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(run,120)});
+return{data,onData:(f)=>{fns.push(f);try{f()}catch(e){console.error(e)}},calc:(id,c)=>{calcs[id]=c},
+params:()=>({...params}),setParams:(o)=>{Object.assign(params,o);run()},resetParams:()=>{params={...DEF};run()},
+colors:['var(--sasa-red)','var(--sasa-gray)','#111111','#E3000F','#808285','#B0B2B4','#4A4B4D','#FF6B6B'],refresh:()=>{},setLink:()=>{},loader:()=>{}}})();
+</script>
+<div class="ts">
+<header class="ts-brand" id="overview">
+<img alt="Toyota Sasa — Toyota Siam Auto Salon" src="logo.jpg">
+<div class="tt">
+<h1>Ads Performance</h1>
+<div class="sub">Facebook Inbox campaigns · Sales team</div><div class="upd" id="upd"></div>
+</div>
+</header>
+<p class="ts-take" id="takeaway"><span class="dash-skeleton">—</span></p>
+<div class="ts-ctrl" id="controls">
+<div class="ts-field">มุมมอง
+<div class="ts-seg" role="group" aria-label="มุมมองช่วงเวลา">
+<button type="button" data-grain="month">รายเดือน</button>
+<button type="button" data-grain="week">รายสัปดาห์</button>
+</div>
+</div>
+<label class="ts-field">เลือกด่วน
+<select class="ts-quick" aria-label="เลือกช่วงเวลาด่วน" data-source="by_sale"></select>
+</label>
+<label class="ts-field">ตั้งแต่วันที่
+<input class="ts-start" type="date" min="2025-12-29" max="2099-12-31" aria-label="ตั้งแต่วันที่">
+</label>
+<label class="ts-field">ถึงวันที่
+<input class="ts-end" type="date" min="2025-12-29" max="2099-12-31" aria-label="ถึงวันที่">
+</label>
+<label class="ts-field">พนักงานขาย
+<select class="ts-sale" aria-label="พนักงานขาย" data-source="by_sale"></select>
+</label>
+<button type="button" class="ts-reset">รีเซ็ต</button>
+<div class="ts-snap" id="snap"></div>
+</div>
+<section class="ts-kpis" id="kpis">
+<div class="ts-kpi hero"><div class="lbl">คนทัก inbox</div><div class="val dash-skeleton" data-source="by_sale" data-field="inbox">—</div></div>
+<div class="ts-kpi hero"><div class="lbl">Cost per inbox</div><div class="val dash-skeleton" data-source="by_sale" data-field="cpi">—</div></div>
+<div class="ts-kpi"><div class="lbl">ค่าโฆษณา</div><div class="val dash-skeleton" data-source="by_sale" data-field="spend">—</div></div>
+<div class="ts-kpi"><div class="lbl">Reach*</div><div class="val dash-skeleton" data-source="by_sale" data-field="reach">—</div></div>
+<div class="ts-kpi"><div class="lbl">Impressions</div><div class="val dash-skeleton" data-source="by_sale" data-field="impressions">—</div></div>
+<div class="ts-kpi"><div class="lbl">Clicks (all)</div><div class="val dash-skeleton" data-source="by_sale" data-field="clicks">—</div></div>
+<div class="ts-kpi"><div class="lbl">Link clicks</div><div class="val dash-skeleton" data-source="by_sale" data-field="link_clicks">—</div></div>
+<div class="ts-kpi"><div class="lbl">CTR (all)</div><div class="val dash-skeleton" data-source="by_sale" data-field="ctr">—</div></div>
+</section>
+<div class="ts-grid">
+<section class="ts-card" id="trend">
+<h2 class="trend-title">Inbox และ cost per inbox</h2>
+<p class="note">แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
+<div class="ts-legend"><span><i style="background:var(--sasa-red)"></i>Inbox</span><span><i class="ln" style="background:var(--sasa-gray)"></i>Cost per inbox</span></div>
+<div class="ts-chart" data-source="by_sale"></div>
+</section>
+<section class="ts-card" id="leaderboard">
+<h2>เปรียบเทียบพนักงานขาย</h2>
+<p class="note lb-note">คลิกชื่อเพื่อดูรายคน · คลิกหัวตารางเพื่อเรียง</p>
+<div class="ts-tbl-wrap">
+<table class="ts-lb" data-source="by_sale" data-row-key="period,sale">
+<thead><tr>
+<th data-field="sale" data-k="sale">พนักงานขาย</th>
+<th data-field="inbox" data-k="inbox">Inbox</th>
+<th data-field="cpi" data-k="cpi">Cost/inbox</th>
+<th data-field="spend" data-k="spend">Spend</th>
+<th data-field="impressions" data-k="impressions" class="hide-narrow">Impr.</th>
+<th data-field="clicks" data-k="clicks" class="hide-narrow">Clicks</th>
+<th data-field="campaigns" data-k="campaigns" class="hide-narrow">แคมเปญ</th>
+</tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</section>
+</div>
+<section class="ts-card" id="heatmap">
+<h2 class="heat-title">Cost per inbox: เซล × ช่วงเวลา</h2>
+<p class="note">สีแดงยิ่งเข้ม = ต้นทุนต่อ inbox ยิ่งสูง · ตัวเลขในช่อง = จำนวน inbox · ✕ = ใช้เงินแต่ไม่มี inbox · คลิกช่องเพื่อเจาะดู</p>
+<div class="ts-heat" data-source="by_sale"></div>
+</section>
+<section class="ts-card" id="campaigns">
+<h2 class="cmp-title">แคมเปญ</h2>
+<p class="note">แคมเปญในช่วงเวลาที่เลือก · Reach* ในการ์ดด้านบนเป็นผลรวมของแต่ละแคมเปญ (นับคนซ้ำได้)</p>
+<div class="ts-tbl-wrap">
+<table class="ts-cmp" data-source="by_campaign" data-row-key="period,campaign_id">
+<thead><tr>
+<th data-field="campaign" data-k="campaign">แคมเปญ</th>
+<th data-field="sale" data-k="sale" class="hide-narrow">เซล</th>
+<th data-field="spend" data-k="spend">Spend</th>
+<th data-field="impressions" data-k="impressions" class="hide-narrow">Impr.</th>
+<th data-field="clicks" data-k="clicks" class="hide-narrow">Clicks</th>
+<th data-field="inbox" data-k="inbox">Inbox</th>
+<th data-field="cpi" data-k="cpi">Cost/inbox</th>
+</tr></thead>
+<tbody></tbody>
+</table>
+</div>
+</section>
+</div>
+<script>
+dash.calc('by_sale', {
+title: 'Totals per salesperson & period',
+description: 'Sums spend, reach, impressions, clicks, link clicks and inbox per salesperson per week or month, plus an all-salespeople row and an all-period row; cost per inbox = spend ÷ inbox, CTR = clicks ÷ impressions.',
+inputs: ['weekly', 'monthly'],
+fn: (weekly, monthly) => {
+const F = ['spend', 'reach', 'impressions', 'clicks', 'link_clicks', 'inbox'];
+const out = new Map();
+const add = (grain, period, sale, r) => {
+const k = period + '|' + sale;
+let o = out.get(k);
+if (!o) { o = {grain, period, sale, ids: new Set()}; F.forEach((f) => (o[f] = 0)); out.set(k, o); }
+F.forEach((f) => (o[f] += r[f]));
+o.ids.add(r.campaign_id);
+};
+for (const r of weekly) for (const p of [r.week, 'ALL-W']) for (const s of [r.sale, 'ทุกคน']) add('week', p, s, r);
+for (const r of monthly) for (const p of [r.month, 'ALL-M']) for (const s of [r.sale, 'ทุกคน']) add('month', p, s, r);
+return [...out.values()].map(({ids, ...o}) => ({...o, spend: Math.round(o.spend * 100) / 100, campaigns: ids.size,
+cpi: o.inbox ? Math.round((o.spend / o.inbox) * 100) / 100 : null, ctr: o.impressions ? o.clicks / o.impressions : null}));
+},
+});
+dash.calc('by_campaign', {
+title: 'Totals per campaign & period',
+description: 'Each campaign’s spend, impressions, clicks and inbox per week or month, plus its total across the whole range; cost per inbox = spend ÷ inbox.',
+inputs: ['weekly', 'monthly'],
+fn: (weekly, monthly) => {
+const out = new Map();
+const add = (period, r) => {
+const k = period + '|' + r.campaign_id;
+const o = out.get(k) || {period, campaign_id: r.campaign_id, campaign: r.campaign, sale: r.sale, spend: 0, impressions: 0, clicks: 0, inbox: 0};
+o.spend += r.spend; o.impressions += r.impressions; o.clicks += r.clicks; o.inbox += r.inbox;
+out.set(k, o);
+};
+for (const r of weekly) { add(r.week, r); add('ALL-W', r); }
+for (const r of monthly) { add(r.month, r); add('ALL-M', r); }
+return [...out.values()].map((o) => ({...o, spend: Math.round(o.spend * 100) / 100, cpi: o.inbox ? Math.round((o.spend / o.inbox) * 100) / 100 : null}));
+},
+});
+</script>
+<script>
+(() => {
+const ALL = 'ทุกคน';
+const RED = 'var(--sasa-red)', GRAY = 'var(--sasa-gray)';
+const TH_M = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const DAY = 864e5;
+const today = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10);
+const iso = (d) => d.toISOString().slice(0, 10);
+const addDays = (s, n) => iso(new Date(Date.parse(s + 'T00:00:00Z') + n * DAY));
+const fmtInt = d3.format(',');
+const fmtBaht = (v) => v == null ? '—' : '฿' + d3.format(',.0f')(v);
+const fmtBaht2 = (v) => v == null ? '—' : '฿' + d3.format(',.2f')(v);
+const fmtPct = (v) => v == null ? '—' : d3.format('.2%')(v);
+const fmtBig = (v) => v >= 10000 ? new Intl.NumberFormat('en', {notation: 'compact', maximumFractionDigits: 1}).format(v) : fmtInt(v);
+const thDate = (s, yr) => { const d = new Date(s + 'T00:00:00Z'); return d.getUTCDate() + ' ' + TH_M[d.getUTCMonth()] + (yr ? ' ' + d.getUTCFullYear() : ''); };
+const allId = (g) => g === 'week' ? 'ALL-W' : 'ALL-M';
+const pStart = (p) => p.length === 7 ? p + '-01' : p;
+const pEnd = (p) => { if (p.length === 7) { const [y, m] = p.split('-').map(Number); return iso(new Date(Date.UTC(y, m, 0))); } return addDays(p, 6); };
+const plabel = (p, short) => {
+if (p.startsWith('ALL')) return 'ทั้งหมด';
+if (p.length === 7) { const [y, m] = p.split('-'); return TH_M[+m - 1] + ' ' + (short ? y.slice(2) : y); }
+return short ? thDate(p) : 'สัปดาห์ ' + thDate(p) + ' – ' + thDate(pEnd(p), true);
+};
+const enc = (s) => String(s).replace(/%/g, '%25').replace(/&/g, '%26').replace(/=/g, '%3D').replace(/,/g, '%2C');
+const where = (o) => Object.entries(o).map(([k, v]) => k + '=' + enc(v)).join('&');
+const P = () => { const p = dash.params(); return {grain: p.grain || 'month', start: p.start || '2026-01-01', end: p.end || today(), sale: p.sale || ALL}; };
+// ---- controls
+const segBtns = document.querySelectorAll('.ts-seg button');
+segBtns.forEach((b) => b.addEventListener('click', () => dash.setParams({grain: b.dataset.grain})));
+const selQuick = document.querySelector('.ts-quick');
+const selSale = document.querySelector('.ts-sale');
+const inStart = document.querySelector('.ts-start');
+const inEnd = document.querySelector('.ts-end');
+selQuick.addEventListener('change', () => {
+const v = selQuick.value; if (v === 'custom') return;
+if (v.startsWith('ALL')) dash.setParams({start: null, end: null});
+else dash.setParams({start: pStart(v), end: pEnd(v)});
+});
+selSale.addEventListener('change', () => dash.setParams({sale: selSale.value}));
+const takeDate = (el, key) => el.addEventListener('change', () => {
+const v = el.value; if (!v || !el.validity.valid || v < '2025-12-29' || v > today()) return;
+const cur = P(); const next = {start: cur.start, end: cur.end, [key]: v};
+if (next.start > next.end) { if (key === 'start') next.end = v; else next.start = v; }
+dash.setParams(next);
+});
+takeDate(inStart, 'start'); takeDate(inEnd, 'end');
+const showDates = () => { const c = P(); if (inStart !== document.activeElement) inStart.value = c.start; if (inEnd !== document.activeElement) inEnd.value = c.end; inStart.max = inEnd.max = today(); };
+inStart.addEventListener('blur', showDates); inEnd.addEventListener('blur', showDates);
+document.querySelector('.ts-reset').addEventListener('click', () => dash.resetParams());
+// ---- sorting
+const sortState = {lb: {k: 'inbox', dir: -1}, cmp: {k: 'spend', dir: -1}};
+const hookSort = (sel, key) => document.querySelectorAll(sel + ' th').forEach((th) => th.addEventListener('click', () => {
+const s = sortState[key]; const k = th.dataset.k;
+s.dir = s.k === k ? -s.dir : (k === 'sale' || k === 'campaign' || k === 'cpi' ? 1 : -1); s.k = k;
+dash.setParams({_sort: key + ':' + k + ':' + s.dir});
+}));
+hookSort('.ts-lb', 'lb'); hookSort('.ts-cmp', 'cmp');
+const sorter = (s) => (a, b) => {
+const x = a[s.k], y = b[s.k];
+if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+return (typeof x === 'string' ? x.localeCompare(y, 'th') : x - y) * s.dir;
+};
+document.querySelector('.ts-lb tbody').addEventListener('click', (e) => {
+const tr = e.target.closest('tr[data-sale]'); if (!tr) return;
+dash.setParams({sale: P().sale === tr.dataset.sale ? ALL : tr.dataset.sale});
+});
+// ---- tooltip
+const tip = document.createElement('div'); tip.className = 'ts-tip';
+const showTip = (box, ev, title, lines) => {
+if (tip.parentNode !== box) box.appendChild(tip);
+tip.replaceChildren();
+const t = document.createElement('div'); t.className = 't'; t.textContent = title; tip.appendChild(t);
+lines.forEach((l) => { const d = document.createElement('div'); d.textContent = l; tip.appendChild(d); });
+tip.style.display = 'block';
+const r = box.getBoundingClientRect(); const x = ev.clientX - r.left + box.scrollLeft, y = ev.clientY - r.top;
+tip.style.left = Math.max(4, Math.min(x + 12, box.scrollLeft + box.clientWidth - tip.offsetWidth - 4)) + 'px';
+tip.style.top = Math.max(0, y - 44) + 'px';
+};
+const hideTip = () => { tip.style.display = 'none'; };
+const fail = (el) => { el.replaceChildren(); const d = document.createElement('div'); d.className = 'ts-fail'; d.textContent = 'Failed to load'; el.appendChild(d); };
+const F = ['spend', 'reach', 'impressions', 'clicks', 'link_clicks', 'inbox'];
+const sumRows = (rows) => {
+const o = {}; F.forEach((f) => (o[f] = d3.sum(rows, (r) => r[f])));
+o.spend = Math.round(o.spend * 100) / 100;
+o.cpi = o.inbox ? Math.round((o.spend / o.inbox) * 100) / 100 : null;
+o.ctr = o.impressions ? o.clicks / o.impressions : null;
+return o;
+};
+dash.onData(() => {
+showDates();
+const st = dash.data('by_sale');
+const {grain, start, end, sale} = P();
+segBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.grain === grain)));
+const kVals = document.querySelectorAll('.ts-kpi .val');
+const chartBox = document.querySelector('.ts-chart');
+const heatBox = document.querySelector('.ts-heat');
+const take = document.getElementById('takeaway');
+if (st.status !== 'ok') {
+if (st.status === 'error') { [chartBox, heatBox].forEach(fail); kVals.forEach((v) => { v.classList.remove('dash-skeleton'); v.textContent = '—'; }); }
+return;
+}
+const R = st.data.filter((r) => r.grain === grain);
+const periodsAll = [...new Set(R.map((r) => r.period))].filter((p) => !p.startsWith('ALL')).sort();
+const periods = periodsAll.filter((p) => pStart(p) <= end && pEnd(p) >= start);
+const ALLID = allId(grain);
+const mode = periods.length === periodsAll.length ? 'all' : periods.length === 1 ? 'one' : 'range';
+const pid = mode === 'all' ? ALLID : mode === 'one' ? periods[0] : null;
+const get = (p, s) => R.find((r) => r.period === p && r.sale === s);
+const inP = new Set(periods);
+const aggFor = (s) => pid ? get(pid, s) : (() => { const rows = R.filter((r) => inP.has(r.period) && r.sale === s); return rows.length ? {...sumRows(rows), sale: s} : null; })();
+const rangeLabel = pid ? plabel(pid) + (mode === 'all' ? ' (' + thDate(pStart(periodsAll[0]), true) + ' – ' + thDate(today(), true) + ')' : '')
+: periods.length ? thDate(pStart(periods[0]), true) + ' – ' + thDate(d3.min([pEnd(periods[periods.length - 1]), today()]), true) : 'ไม่มีข้อมูลในช่วงที่เลือก';
+// sales list (by total inbox in the whole data)
+const sales = [...new Set(R.map((r) => r.sale))].filter((s) => s !== ALL)
+.sort((a, b) => (get(ALLID, b)?.inbox || 0) - (get(ALLID, a)?.inbox || 0));
+// quick select & sale select
+selQuick.replaceChildren(new Option('ทั้งหมด', ALLID), ...periodsAll.slice().reverse().map((p) => new Option(plabel(p), p)), new Option('กำหนดเอง', 'custom'));
+selQuick.value = pid || 'custom';
+selSale.replaceChildren(new Option('พนักงานขายทุกคน', ALL), ...sales.map((s) => new Option(s, s)));
+selSale.value = sales.includes(sale) ? sale : ALL;
+const curS = selSale.value;
+document.getElementById('snap').textContent = 'ช่วงที่แสดง: ' + rangeLabel + ' · ข้อมูลเก็บเป็นราย' + (grain === 'week' ? 'สัปดาห์ (จันทร์–อาทิตย์)' : 'เดือน') + ' จึงนับทั้ง' + (grain === 'week' ? 'สัปดาห์' : 'เดือน') + 'ที่คาบเกี่ยวกับวันที่เลือก';
+// KPIs
+const k = aggFor(curS);
+kVals.forEach((v) => {
+v.classList.remove('dash-skeleton');
+if (pid) v.setAttribute('data-where', where({period: pid, sale: curS})); else v.removeAttribute('data-where');
+const f = v.dataset.field; const x = k ? k[f] : null;
+v.textContent = x == null ? '—' : f === 'cpi' ? fmtBaht2(x) : f === 'spend' ? fmtBaht(x) : f === 'ctr' ? fmtPct(x) : fmtBig(x);
+});
+// takeaway
+take.replaceChildren();
+const span = (txt, s, field, cls) => { const b = document.createElement('b'); b.textContent = txt; if (cls) b.className = cls;
+if (s != null && pid) { b.dataset.source = 'by_sale'; b.dataset.field = field; b.setAttribute('data-where', where({period: pid, sale: s})); } return b; };
+if (k) {
+take.append(rangeLabel + ' · ' + (curS === ALL ? 'ทุกเซล' : curS) + ': คนทัก inbox ', span(fmtInt(k.inbox), curS, 'inbox', 'hl'),
+' คน ต้นทุนเฉลี่ย ', span(fmtBaht2(k.cpi), curS, 'cpi', 'hl'), ' ต่อ inbox จากงบ ', span(fmtBaht(k.spend), curS, 'spend'));
+if (curS === ALL) {
+const peers = sales.map(aggFor).filter((r) => r && r.inbox >= 5 && r.cpi != null).sort((a, b) => a.cpi - b.cpi);
+if (peers.length > 1) {
+const best = peers[0], worst = peers[peers.length - 1];
+take.append(' — ต้นทุนต่ำสุด ', span(best.sale), ' (', span(fmtBaht2(best.cpi), best.sale, 'cpi'),
+') สูงสุด ', span(worst.sale), ' (', span(fmtBaht2(worst.cpi), worst.sale, 'cpi'), ') ในกลุ่มที่มี inbox ≥ 5');
+}
+}
+} else take.textContent = rangeLabel;
+// trend
+const tr = periods.map((p) => get(p, curS) || {period: p, sale: curS, inbox: 0, cpi: null, spend: 0});
+document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox ' + (grain === 'week' ? 'รายสัปดาห์' : 'รายเดือน') + ' · ' + (curS === ALL ? 'ทุกเซล' : curS);
+const W = chartBox.clientWidth || 600, H = 280, m = {t: 12, r: 52, b: 28, l: 44};
+chartBox.replaceChildren();
+if (tr.length) {
+const svg = d3.select(chartBox).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Inbox trend');
+const x = d3.scaleBand(tr.map((d) => d.period), [m.l, W - m.r]).padding(0.25);
+const y = d3.scaleLinear([0, d3.max(tr, (d) => d.inbox) || 1], [H - m.b, m.t]).nice();
+const y2 = d3.scaleLinear([0, d3.max(tr, (d) => d.cpi) || 1], [H - m.b, m.t]).nice();
+const axisText = (g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('~s')))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); axisText(g); });
+svg.append('g').attr('transform', `translate(${W - m.r},0)`).call(d3.axisRight(y2).ticks(5).tickFormat((v) => '฿' + d3.format('~s')(v)))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').remove(); axisText(g); });
+const every = Math.max(1, Math.ceil(tr.length / Math.max(1, Math.floor((W - m.l - m.r) / 56))));
+svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat((p) => plabel(p, true)).tickSize(0).tickPadding(8))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'); axisText(g); });
+svg.append('g').selectAll('rect').data(tr).join('rect')
+.attr('x', (d) => x(d.period)).attr('width', x.bandwidth()).attr('y', (d) => y(d.inbox)).attr('height', (d) => Math.max(0, y(0) - y(d.inbox)))
+.attr('rx', Math.min(4, x.bandwidth() / 2)).attr('fill', RED).attr('fill-opacity', mode === 'one' ? 1 : 0.85).style('cursor', 'pointer')
+.on('mousemove', (ev, d) => showTip(chartBox, ev, plabel(d.period), ['Inbox: ' + fmtInt(d.inbox), 'Cost/inbox: ' + fmtBaht2(d.cpi), 'Spend: ' + fmtBaht(d.spend)]))
+.on('mouseleave', hideTip)
+.on('click', (ev, d) => mode === 'one' ? dash.setParams({start: null, end: null}) : dash.setParams({start: pStart(d.period), end: pEnd(d.period)}));
+const line = d3.line().defined((d) => d.cpi != null).x((d) => x(d.period) + x.bandwidth() / 2).y((d) => y2(d.cpi));
+svg.append('path').datum(tr).attr('d', line).attr('fill', 'none').attr('stroke', GRAY).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
+svg.append('g').selectAll('circle').data(tr.filter((d) => d.cpi != null)).join('circle').attr('cx', (d) => x(d.period) + x.bandwidth() / 2).attr('cy', (d) => y2(d.cpi)).attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', GRAY).attr('stroke-width', 1.5).style('pointer-events', 'none');
+}
+// leaderboard
+const lb = sales.map(aggFor).filter(Boolean).map((r) => {
+if (pid) return r;
+const ids = new Set((dash.data('by_campaign').data || []).filter((c) => inP.has(c.period) && c.sale === r.sale).map((c) => c.campaign_id));
+return {...r, campaigns: ids.size};
+}).sort(sorter(sortState.lb));
+const maxIn = d3.max(lb, (d) => d.inbox) || 1;
+const med = d3.median(lb.filter((d) => d.cpi != null), (d) => d.cpi);
+const tbody = document.querySelector('.ts-lb tbody'); tbody.replaceChildren();
+document.querySelectorAll('.ts-lb th').forEach((th) => th.setAttribute('aria-sort', th.dataset.k === sortState.lb.k ? (sortState.lb.dir > 0 ? 'ascending' : 'descending') : 'none'));
+lb.forEach((d) => {
+const row = document.createElement('tr'); if (pid) row.dataset.key = enc(pid) + ',' + enc(d.sale); row.dataset.sale = d.sale; if (d.sale === curS) row.className = 'sel';
+const td = (txt, cls) => { const c = document.createElement('td'); c.textContent = txt; if (cls) c.className = cls; row.appendChild(c); return c; };
+td(d.sale, 'name');
+const ci = td(fmtInt(d.inbox)); const bar = document.createElement('span'); bar.className = 'bar'; bar.style.width = Math.round(36 * d.inbox / maxIn) + 'px'; ci.appendChild(bar);
+td(fmtBaht2(d.cpi), d.cpi == null ? 'bad' : (med != null && d.cpi <= med ? 'good' : ''));
+td(fmtBaht(d.spend)); td(fmtInt(d.impressions), 'hide-narrow'); td(fmtInt(d.clicks), 'hide-narrow'); td(fmtInt(d.campaigns), 'hide-narrow');
+tbody.appendChild(row);
+});
+document.querySelector('.lb-note').textContent = rangeLabel + ' · สีเขียว = cost/inbox ต่ำกว่าหรือเท่ากับค่ากลางของทีม · คลิกชื่อเพื่อดูรายคน';
+// heatmap
+document.querySelector('.heat-title').textContent = 'Cost per inbox: เซล × ' + (grain === 'week' ? 'สัปดาห์' : 'เดือน');
+heatBox.replaceChildren();
+const hs = curS === ALL ? sales : [curS];
+const cw = grain === 'week' ? 36 : 64, rh = 26, lw = 124, top = 22;
+const HW = Math.max(heatBox.clientWidth || 600, lw + periods.length * cw + 8), HH = top + hs.length * rh + 4;
+const hsvg = d3.select(heatBox).append('svg').attr('width', HW).attr('height', HH).attr('viewBox', `0 0 ${HW} ${HH}`);
+const cpis = R.filter((r) => r.sale !== ALL && !r.period.startsWith('ALL') && r.cpi != null).map((r) => r.cpi).sort(d3.ascending);
+const hi = d3.quantile(cpis, 0.9) || 1;
+const op = d3.scaleLinear([0, hi], [0.1, 1]).clamp(true);
+const labEvery = grain === 'week' && periods.length > 12 ? 2 : 1;
+hsvg.append('g').selectAll('text').data(periods).join('text').attr('x', (p, i) => lw + i * cw + cw / 2).attr('y', 14).attr('text-anchor', 'middle')
+.attr('fill', 'var(--color-fg-muted)').style('font-size', '10px').text((p, i) => i % labEvery === 0 ? plabel(p, true) : '');
+hs.forEach((s, j) => {
+const g = hsvg.append('g').attr('transform', `translate(0,${top + j * rh})`);
+g.append('text').attr('x', 0).attr('y', rh / 2 + 4).attr('fill', s === curS ? 'var(--sasa-red)' : 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').style('cursor', 'pointer')
+.text(s.length > 16 ? s.slice(0, 15) + '…' : s).on('click', () => dash.setParams({sale: curS === s ? ALL : s}));
+periods.forEach((p, i) => {
+const d = get(p, s); if (!d) return;
+const cx = lw + i * cw;
+const o = d.inbox ? op(d.cpi) : 0;
+const cell = g.append('rect').attr('x', cx + 1).attr('y', 1).attr('width', cw - 2).attr('height', rh - 2).attr('rx', 3)
+.attr('fill', d.inbox ? RED : 'var(--sasa-gray)').attr('fill-opacity', d.inbox ? o : 0.25).style('cursor', 'pointer');
+g.append('text').attr('x', cx + cw / 2).attr('y', rh / 2 + 4).attr('text-anchor', 'middle').style('font-size', '10px').style('pointer-events', 'none')
+.attr('fill', o > 0.55 ? '#fff' : 'var(--color-fg)').text(d.inbox ? d.inbox : '✕');
+cell.on('mousemove', (ev) => showTip(heatBox, ev, s + ' · ' + plabel(p), ['Inbox: ' + fmtInt(d.inbox), 'Cost/inbox: ' + fmtBaht2(d.cpi), 'Spend: ' + fmtBaht(d.spend)]))
+.on('mouseleave', hideTip).on('click', () => dash.setParams({start: pStart(p), end: pEnd(p), sale: s}));
+});
+});
+// campaigns
+const cs = dash.data('by_campaign');
+const cbody = document.querySelector('.ts-cmp tbody'); cbody.replaceChildren();
+document.querySelector('.cmp-title').textContent = 'แคมเปญ · ' + rangeLabel + ' · ' + (curS === ALL ? 'ทุกเซล' : curS);
+document.querySelectorAll('.ts-cmp th').forEach((th) => th.setAttribute('aria-sort', th.dataset.k === sortState.cmp.k ? (sortState.cmp.dir > 0 ? 'ascending' : 'descending') : 'none'));
+if (cs.status === 'ok') {
+let crow;
+if (pid) crow = cs.data.filter((r) => r.period === pid && (curS === ALL || r.sale === curS));
+else {
+const m2 = new Map();
+cs.data.filter((r) => inP.has(r.period) && (curS === ALL || r.sale === curS)).forEach((r) => {
+const o = m2.get(r.campaign_id) || {campaign_id: r.campaign_id, campaign: r.campaign, sale: r.sale, spend: 0, impressions: 0, clicks: 0, inbox: 0};
+o.spend += r.spend; o.impressions += r.impressions; o.clicks += r.clicks; o.inbox += r.inbox; m2.set(r.campaign_id, o);
+});
+crow = [...m2.values()].map((o) => ({...o, spend: Math.round(o.spend * 100) / 100, cpi: o.inbox ? Math.round((o.spend / o.inbox) * 100) / 100 : null}));
+}
+crow.sort(sorter(sortState.cmp)).forEach((d) => {
+const row = document.createElement('tr'); if (pid) row.dataset.key = enc(pid) + ',' + enc(d.campaign_id);
+const td = (txt, cls) => { const c = document.createElement('td'); c.textContent = txt; if (cls) c.className = cls; row.appendChild(c); };
+td(d.campaign, 'name'); td(d.sale, 'hide-narrow'); td(fmtBaht(d.spend)); td(fmtInt(d.impressions), 'hide-narrow'); td(fmtInt(d.clicks), 'hide-narrow');
+td(fmtInt(d.inbox)); td(fmtBaht2(d.cpi), d.cpi == null ? 'bad' : '');
+row.addEventListener('click', () => dash.setParams({sale: d.sale}));
+cbody.appendChild(row);
+});
+}
+});
+})();
+</script>
+</div></body></html>

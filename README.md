@@ -7,3 +7,8 @@ Deployed on Vercel from `main`. Data is refreshed every Monday ~05:00 (Asia/Bang
 - `data.json` — compact data (campaign dictionary + weekly/monthly rows)
 - `scripts/build.py RAW_DIR` — turns raw Meta Ads API pulls (w_*.json, m_*.json) into weekly.json / monthly.json
 - `scripts/pack.py weekly.json monthly.json UPDATED_ISO data.json` — packs them into `data.json`
+
+## Access
+The whole site (page and `data.json`) sits behind a PIN screen (`middleware.js`, Vercel Routing Middleware).
+The PIN is the project env var `DASHBOARD_PIN` — change it in Vercel → Settings → Environment Variables, then redeploy;
+changing it logs everyone out. A correct PIN keeps a browser signed in for 30 days.

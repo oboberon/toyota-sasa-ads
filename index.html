@@ -78,6 +78,13 @@ font-family: var(--font-anthropic-sans); color: var(--color-fg); max-width: 1320
 [data-dash-source-state=empty] { color: transparent; }
 .ts-fail { display: flex; align-items: center; justify-content: center; gap: 6px; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); min-height: inherit; }
 .ts-fail::before { content: ''; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+.ts-kpi { cursor: pointer; user-select: none; transition: background-color .15s, border-color .15s; position: relative; }
+.ts-kpi:hover { border-color: var(--sasa-red); }
+.ts-kpi:focus-visible { outline: 2px solid var(--sasa-red); outline-offset: 2px; }
+.ts-kpi.hero[aria-pressed=false] { border-top-color: var(--sasa-gray); }
+.ts-kpi[aria-pressed=true] { background: var(--sasa-red-soft); border-color: var(--sasa-red); border-top-color: var(--sasa-red); }
+.ts-kpi[aria-pressed=true]::after { content: '✓'; position: absolute; top: 8px; right: 10px; font-size: 13px; font-weight: 700; color: var(--sasa-red); }
+.ts-kpi-hint { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: calc(-1 * var(--cds-gap-sm)) 0 var(--cds-gap-md); }
 </style></head>
 <body><div id="dash-root"><script>
 window.dash=(()=>{const DEF={grain:'month',start:null,end:null,sale:'ทุกคน',_sort:null};
@@ -142,8 +149,8 @@ colors:['var(--sasa-red)','var(--sasa-gray)','#111111','#E3000F','#808285','#B0B
 </section>
 <div class="ts-grid">
 <section class="ts-card" id="trend">
-<h2 class="trend-title">Inbox และ cost per inbox</h2>
-<p class="note trend-note">แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
+<h2 class="trend-title">แนวโน้ม</h2>
+<p class="note trend-note">คลิกแท่งเพื่อดูเฉพาะช่วงนั้น</p>
 <div class="ts-legend"><span><i style="background:var(--sasa-red)"></i>Inbox</span><span><i class="ln" style="background:var(--sasa-gray)"></i>Cost per inbox</span></div>
 <div class="ts-chart" data-source="by_sale"></div>
 </section>
@@ -244,6 +251,19 @@ const fmtBaht2 = (v) => v == null ? '—' : '฿' + d3.format(',.2f')(v);
 const fmtPct = (v) => v == null ? '—' : d3.format('.2%')(v);
 const fmtBig = (v) => v >= 10000 ? new Intl.NumberFormat('en', {notation: 'compact', maximumFractionDigits: 1}).format(v) : fmtInt(v);
 const thDate = (s, yr) => { const d = new Date(s + 'T00:00:00Z'); return d.getUTCDate() + ' ' + TH_M[d.getUTCMonth()] + (yr ? ' ' + d.getUTCFullYear() : ''); };
+const METRICS = {
+inbox: {lbl: 'Inbox', kind: 'bar', fmt: (v) => fmtInt(v || 0), ax: d3.format('~s')},
+cpi: {lbl: 'Cost per inbox', kind: 'line', fmt: (v) => fmtBaht2(v), ax: (v) => '฿' + d3.format('~s')(v)},
+spend: {lbl: 'ค่าโฆษณา', kind: 'bar', fmt: (v) => fmtBaht(v || 0), ax: (v) => '฿' + d3.format('~s')(v)},
+reach: {lbl: 'Reach*', kind: 'bar', fmt: (v) => fmtInt(v || 0), ax: d3.format('~s')},
+impressions: {lbl: 'Impressions', kind: 'bar', fmt: (v) => fmtInt(v || 0), ax: d3.format('~s')},
+clicks: {lbl: 'Clicks (all)', kind: 'bar', fmt: (v) => fmtInt(v || 0), ax: d3.format('~s')},
+link_clicks: {lbl: 'Link clicks', kind: 'bar', fmt: (v) => fmtInt(v || 0), ax: d3.format('~s')},
+ctr: {lbl: 'CTR (all)', kind: 'line', fmt: (v) => fmtPct(v), ax: d3.format('.1%')},
+};
+let selM = ['inbox', 'cpi'];
+try { const v = JSON.parse(localStorage.getItem('ts-metrics')); if (Array.isArray(v) && v.length && v.every((k) => METRICS[k])) selM = v; } catch (e) {}
+let lastTrend = null;
 const TH_D = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
 const wkStart = (s) => addDays(s, -((new Date(s + 'T00:00:00Z').getUTCDay() + 6) % 7));
 const dow = (s) => TH_D[new Date(s + 'T00:00:00Z').getUTCDay()];
@@ -321,6 +341,68 @@ o.cpi = o.inbox ? Math.round((o.spend / o.inbox) * 100) / 100 : null;
 o.ctr = o.impressions ? o.clicks / o.impressions : null;
 return o;
 };
+// ---- metric cards -> trend chart (multi-select, one panel per metric)
+const kpiCards = [...document.querySelectorAll('.ts-kpi')];
+const paintCards = () => kpiCards.forEach((c) => c.setAttribute('aria-pressed', String(selM.includes(c.dataset.m))));
+const toggleMetric = (k) => {
+if (selM.includes(k)) { if (selM.length === 1) return; selM = selM.filter((x) => x !== k); }
+else selM = Object.keys(METRICS).filter((x) => x === k || selM.includes(x));
+try { localStorage.setItem('ts-metrics', JSON.stringify(selM)); } catch (e) {}
+paintCards(); drawTrend();
+};
+kpiCards.forEach((c) => {
+c.dataset.m = c.querySelector('.val').dataset.field; c.tabIndex = 0; c.setAttribute('role', 'button');
+c.title = 'คลิกเพื่อแสดง/ซ่อนในกราฟแนวโน้ม';
+c.addEventListener('click', () => toggleMetric(c.dataset.m));
+c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleMetric(c.dataset.m); } });
+});
+(() => { const h = document.createElement('p'); h.className = 'ts-kpi-hint'; h.textContent = 'คลิกการ์ดเพื่อเลือกตัวชี้วัดที่จะแสดงในกราฟแนวโน้ม (เลือกได้หลายตัวพร้อมกัน)'; document.getElementById('kpis').after(h); })();
+paintCards();
+function drawTrend() {
+const box = document.querySelector('.ts-chart');
+const leg = document.querySelector('#trend .ts-legend');
+leg.replaceChildren(...selM.map((k) => { const sp = document.createElement('span'); const i = document.createElement('i');
+if (METRICS[k].kind === 'line') i.className = 'ln'; i.style.background = METRICS[k].kind === 'bar' ? RED : GRAY; sp.append(i, METRICS[k].lbl); return sp; }));
+if (!lastTrend) return;
+const {tr, xLab, tipLab, onBar, barCursor, hl} = lastTrend;
+box.replaceChildren();
+if (!tr.length) return;
+const n = selM.length, W = box.clientWidth || 600, ph = n === 1 ? 256 : n === 2 ? 170 : 128, gap = 14, xh = 26;
+const m = {t: 22, r: 16, l: 56};
+const H = n * ph + (n - 1) * gap + xh;
+const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'แนวโน้ม: ' + selM.map((k) => METRICS[k].lbl).join(', '));
+const x = d3.scaleBand(tr.map((d) => d.period), [m.l, W - m.r]).padding(0.25);
+const axisText = (g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
+selM.forEach((k, i) => {
+const M = METRICS[k], top = i * (ph + gap), y0 = top + ph;
+const val = (d) => { const v = d[k]; return v == null ? (M.kind === 'line' ? null : 0) : v; };
+const y = d3.scaleLinear([0, d3.max(tr, val) || 1], [y0, top + m.t]).nice();
+svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(n === 1 ? 5 : 3).tickSize(-(W - m.l - m.r)).tickFormat(M.ax))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); axisText(g); });
+svg.append('line').attr('x1', m.l).attr('x2', W - m.r).attr('y1', y0).attr('y2', y0).attr('stroke', 'var(--cds-chart-axis)');
+svg.append('text').attr('x', m.l).attr('y', top + 11).attr('fill', 'var(--color-fg)').style('font-size', 'var(--cds-font-size-caption)').style('font-weight', 600).text(M.lbl);
+if (M.kind === 'bar') {
+svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period)).attr('width', x.bandwidth())
+.attr('y', (d) => y(val(d))).attr('height', (d) => Math.max(0, y0 - y(val(d)))).attr('rx', Math.min(4, x.bandwidth() / 2))
+.attr('fill', RED).attr('fill-opacity', hl ? 1 : 0.85).style('pointer-events', 'none');
+} else {
+const pts = tr.filter((d) => val(d) != null);
+svg.append('path').datum(tr).attr('d', d3.line().defined((d) => val(d) != null).x((d) => x(d.period) + x.bandwidth() / 2).y((d) => y(val(d))))
+.attr('fill', 'none').attr('stroke', GRAY).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
+svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx', (d) => x(d.period) + x.bandwidth() / 2).attr('cy', (d) => y(val(d)))
+.attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', GRAY).attr('stroke-width', 1.5).style('pointer-events', 'none');
+}
+});
+const every = Math.max(1, Math.ceil(tr.length / Math.max(1, Math.floor((W - m.l - m.r) / 56))));
+svg.append('g').attr('transform', `translate(0,${H - xh})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat(xLab).tickSize(0).tickPadding(8))
+.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); axisText(g); });
+const step = x.step();
+svg.append('g').selectAll('rect').data(tr).join('rect').attr('x', (d) => x(d.period) - (step - x.bandwidth()) / 2).attr('width', step).attr('y', 0).attr('height', H - xh)
+.attr('fill', 'var(--sasa-red)').attr('fill-opacity', 0).style('cursor', barCursor)
+.on('mousemove', function (ev, d) { d3.select(this).attr('fill-opacity', 0.06); showTip(box, ev, tipLab(d), selM.map((k) => METRICS[k].lbl + ': ' + METRICS[k].fmt(d[k]))); })
+.on('mouseleave', function () { d3.select(this).attr('fill-opacity', 0); hideTip(); })
+.on('click', (ev, d) => { if (onBar) onBar(d); });
+}
 dash.onData(() => {
 showDates();
 const st = dash.data('by_sale');
@@ -401,13 +483,13 @@ if (drill === 'month') {
 xLab = (k) => span2(byK.get(k).a, byK.get(k).b);
 tipLab = (d) => 'สัปดาห์ ' + span2(d.a, d.b, true);
 onBar = (d) => dash.setParams({grain: 'week', start: d.period, end: addDays(d.period, 6)});
-document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox รายสัปดาห์ · ' + plabel(pid) + ' · ' + who;
+document.querySelector('.trend-title').textContent = 'แนวโน้มรายสัปดาห์ · ' + plabel(pid) + ' · ' + who;
 trendNote.textContent = 'แยกเป็นสัปดาห์ (จันทร์–อาทิตย์) นับเฉพาะวันที่อยู่ในเดือนนี้ · คลิกแท่งเพื่อดูรายวันของสัปดาห์นั้น';
 } else {
 xLab = (k) => dow(k) + ' ' + +k.slice(8);
 tipLab = (d) => dow(d.period) + ' ' + thDate(d.period, true);
 onBar = null; barCursor = 'default';
-document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox รายวัน · ' + plabel(pid) + ' · ' + who;
+document.querySelector('.trend-title').textContent = 'แนวโน้มรายวัน · ' + plabel(pid) + ' · ' + who;
 trendNote.textContent = 'แยกเป็นรายวัน · ยอดรายวันรวมกันอาจต่างจากยอดทั้งสัปดาห์ราว ±1 inbox เพราะ Meta นับคนทักซ้ำต่างกันตามช่วงเวลา';
 }
 } else {
@@ -415,34 +497,11 @@ tr = periods.map((p) => get(p, curS) || {period: p, sale: curS, inbox: 0, cpi: n
 xLab = (p) => plabel(p, true);
 tipLab = (d) => plabel(d.period);
 onBar = (d) => mode === 'one' ? dash.setParams({start: null, end: null}) : dash.setParams({start: pStart(d.period), end: pEnd(d.period)});
-document.querySelector('.trend-title').textContent = 'Inbox และ cost per inbox ' + (grain === 'week' ? 'รายสัปดาห์' : 'รายเดือน') + ' · ' + who;
-trendNote.textContent = 'แท่ง = จำนวนคนทัก inbox · เส้น = cost per inbox (บาท) · คลิกแท่งเพื่อดูเฉพาะช่วงนั้น' + (mode === 'one' ? '' : ' (เลือก 1 ' + (grain === 'week' ? 'สัปดาห์จะเห็นรายวัน' : 'เดือนจะเห็นรายสัปดาห์') + ')');
+document.querySelector('.trend-title').textContent = 'แนวโน้ม' + (grain === 'week' ? 'รายสัปดาห์' : 'รายเดือน') + ' · ' + who;
+trendNote.textContent = 'คลิกแท่งเพื่อดูเฉพาะช่วงนั้น' + (mode === 'one' ? '' : ' (เลือก 1 ' + (grain === 'week' ? 'สัปดาห์จะเห็นรายวัน' : 'เดือนจะเห็นรายสัปดาห์') + ')');
 }
-const W = chartBox.clientWidth || 600, H = 280, m = {t: 12, r: 52, b: 28, l: 44};
-chartBox.replaceChildren();
-if (tr.length) {
-const svg = d3.select(chartBox).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', 'Inbox trend');
-const x = d3.scaleBand(tr.map((d) => d.period), [m.l, W - m.r]).padding(0.25);
-const y = d3.scaleLinear([0, d3.max(tr, (d) => d.inbox) || 1], [H - m.b, m.t]).nice();
-const y2 = d3.scaleLinear([0, d3.max(tr, (d) => d.cpi) || 1], [H - m.b, m.t]).nice();
-const axisText = (g) => g.selectAll('text').attr('fill', 'var(--color-fg-muted)').style('font-size', 'var(--cds-font-size-caption)');
-svg.append('g').attr('transform', `translate(${m.l},0)`).call(d3.axisLeft(y).ticks(5).tickSize(-(W - m.l - m.r)).tickFormat(d3.format('~s')))
-.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').attr('stroke', 'var(--cds-chart-grid)'); axisText(g); });
-svg.append('g').attr('transform', `translate(${W - m.r},0)`).call(d3.axisRight(y2).ticks(5).tickFormat((v) => '฿' + d3.format('~s')(v)))
-.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').remove(); g.selectAll('line').remove(); axisText(g); });
-const every = Math.max(1, Math.ceil(tr.length / Math.max(1, Math.floor((W - m.l - m.r) / 56))));
-svg.append('g').attr('transform', `translate(0,${H - m.b})`).call(d3.axisBottom(x).tickValues(tr.map((d) => d.period).filter((_, i) => i % every === 0)).tickFormat(xLab).tickSize(0).tickPadding(8))
-.attr('font-size', null).attr('font-family', null).call((g) => { g.select('.domain').attr('stroke', 'var(--cds-chart-axis)'); axisText(g); });
-svg.append('g').selectAll('rect').data(tr).join('rect')
-.attr('x', (d) => x(d.period)).attr('width', x.bandwidth()).attr('y', (d) => y(d.inbox)).attr('height', (d) => Math.max(0, y(0) - y(d.inbox)))
-.attr('rx', Math.min(4, x.bandwidth() / 2)).attr('fill', RED).attr('fill-opacity', mode === 'one' && !drill ? 1 : 0.85).style('cursor', barCursor)
-.on('mousemove', (ev, d) => showTip(chartBox, ev, tipLab(d), ['Inbox: ' + fmtInt(d.inbox), 'Cost/inbox: ' + fmtBaht2(d.cpi), 'Spend: ' + fmtBaht(d.spend)]))
-.on('mouseleave', hideTip)
-.on('click', (ev, d) => { if (onBar) onBar(d); });
-const line = d3.line().defined((d) => d.cpi != null).x((d) => x(d.period) + x.bandwidth() / 2).y((d) => y2(d.cpi));
-svg.append('path').datum(tr).attr('d', line).attr('fill', 'none').attr('stroke', GRAY).attr('stroke-width', 2).attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').style('pointer-events', 'none');
-svg.append('g').selectAll('circle').data(tr.filter((d) => d.cpi != null)).join('circle').attr('cx', (d) => x(d.period) + x.bandwidth() / 2).attr('cy', (d) => y2(d.cpi)).attr('r', 3).attr('fill', 'var(--color-panel)').attr('stroke', GRAY).attr('stroke-width', 1.5).style('pointer-events', 'none');
-}
+lastTrend = {tr, xLab, tipLab, onBar, barCursor, hl: mode === 'one' && !drill};
+drawTrend();
 // leaderboard
 const lb = sales.map(aggFor).filter(Boolean).map((r) => {
 if (pid) return r;
